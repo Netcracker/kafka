@@ -39,6 +39,26 @@ jobs:
           tag-name: ${{ inputs.tag }}
           force-create: ${{ inputs.forceCreate }}
 
+      - name: Create or Update GitHub Release
+        run: |
+          TAG_NAME="${{ inputs.tag }}"
+          RELEASE_TITLE="Release $TAG_NAME"
+          RELEASE_BODY="Automatically generated release for tag $TAG_NAME."
+
+          echo "Checking if release $TAG_NAME exists..."
+
+          if gh release view "$TAG_NAME" &>/dev/null; then
+            echo "🔁 echo "Release $TAG_NAME already exists. Updating it..."
+            gh release edit "$TAG_NAME"  --title "$RELEASE_TITLE" --notes "$RELEASE_BODY"
+          else
+            echo "🆕 Release $TAG_NAME does not exist. Creating it..."
+            gh release create "$TAG_NAME" --title "$RELEASE_TITLE" --notes "$RELEASE_BODY"
+          fi
+          echo "✅ Release $TAG_NAME has been created or updated successfully."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
