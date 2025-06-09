@@ -48,7 +48,7 @@ jobs:
           echo "Checking if release $TAG_NAME exists..."
 
           if gh release view "$TAG_NAME" &>/dev/null; then
-            echo "🔁 echo "Release $TAG_NAME already exists. Updating it..."
+            echo "🔁 echo Release $TAG_NAME already exists. Updating it..."
             gh release edit "$TAG_NAME"  --title "$RELEASE_TITLE" --notes "$RELEASE_BODY"
           else
             echo "🚀 Release $TAG_NAME does not exist. Creating it..."
