@@ -1,0 +1,114 @@
+# .github/workflows/qb-build-kafka.yml
+name: Build .tgz for Apache Kafka
+run-name: "Image for ${{ github.event.repository.name }}: ${{ github.run_number }} - ${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create (default: v1.0.0)"
+        required: false
+        default: "v1"
+      forceCreate:
+        type: boolean
+        description: "Override tag name (default: true)"
+        required: false
+        default: true
+      scalaVersion:
+        description: "Scala version to use (default: 2.13.16)"
+        required: false
+        default: "2.13.16"
+      javaVersion:
+        description: "Java version to use (default: 17)"
+        required: false
+        default: "17"
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create a New Tag
+        uses: netcracker/qubership-workflow-hub/actions/tag-action@main
+        with:
+          ref: ${{ github.ref_name }}
+          tag-name: ${{ inputs.tag }}
+          force-create: ${{ inputs.forceCreate }}
+
+      - name: Create or Update GitHub Release
+        run: |
+          TAG_NAME="${{ inputs.tag }}"
+          RELEASE_TITLE="Release $TAG_NAME"
+          RELEASE_BODY="Automatically generated release for tag $TAG_NAME."
+
+          echo "Checking if release $TAG_NAME exists..."
+
+          if gh release view "$TAG_NAME" &>/dev/null; then
+            echo "🔁 echo "Release $TAG_NAME already exists. Updating it..."
+            gh release edit "$TAG_NAME"  --title "$RELEASE_TITLE" --notes "$RELEASE_BODY"
+          else
+            echo "🚀 Release $TAG_NAME does not exist. Creating it..."
+            gh release create "$TAG_NAME" --title "$RELEASE_TITLE" --notes "$RELEASE_BODY"
+          fi
+          echo "✅ Release $TAG_NAME has been created or updated successfully."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.javaVersion }}
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: Build and test (skip Spotless and RAT)
+        run: |
+          ./gradlew clean -x spotlessCheck -x rat -x test check releaseTarGz \
+            -PscalaVersion=${{ inputs.scalaVersion }} \
+            --warning-mode all \
+            --stacktrace
+      - name: Upload Kafka distribution
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kafka-distribution
+          path: core/build/distributions/*.tgz
+
+      - name: Upload assets
+        if: success()
+        uses: netcracker/qubership-workflow-hub/actions/assets-action@main
+        with:
+          tag: ${{ github.ref_name }}
+          item-path: core/build/distributions/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: "Upload assets"
+      #   uses: netcracker/qubership-workflow-hub/actions/assets-action@main
+      #   with:
+      #     tag: ${{ github.ref_name }}
+      #     item-path: core/build/apache-cassandra-*.tar.gz, NEWS.txt, NOTICE.txt, ci
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload failed test report
+        if: failure() # Выполнится только если шаг выше завершился ошибкой
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-test-report
+          path: core/build/reports/tests/test/
