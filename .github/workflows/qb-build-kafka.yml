@@ -67,6 +67,7 @@ jobs:
             -PscalaVersion=${{ inputs.scalaVersion }} \
             --warning-mode all \
             --stacktrace
+
       - name: Upload Kafka distribution
         if: success()
         uses: actions/upload-artifact@v4
@@ -83,13 +84,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: "Upload assets"
-      #   uses: netcracker/qubership-workflow-hub/actions/assets-action@main
-      #   with:
-      #     tag: ${{ github.ref_name }}
-      #     item-path: core/build/apache-cassandra-*.tar.gz, NEWS.txt, NOTICE.txt, ci
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Upload assets"
+        uses: netcracker/qubership-workflow-hub/actions/assets-action@main
+        with:
+          tag: ${{ inputs.tag }}
+          item-path: core/build/apache-cassandra-*.tar.gz, NEWS.txt, NOTICE.txt, ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test report
         if: failure() # Выполнится только если шаг выше завершился ошибкой
