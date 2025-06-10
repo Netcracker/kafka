@@ -75,15 +75,6 @@ jobs:
           name: kafka-distribution
           path: core/build/distributions/*.tgz
 
-      - name: Upload assets
-        if: success()
-        uses: netcracker/qubership-workflow-hub/actions/assets-action@main
-        with:
-          tag: ${{ github.ref_name }}
-          item-path: core/build/distributions/*.tgz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: "Upload assets"
         uses: netcracker/qubership-workflow-hub/actions/assets-action@main
         with:
